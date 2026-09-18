@@ -226,15 +226,14 @@ export default function AssessmentModal({
 
       await saveNotebookLocally(newNotebook);
       onNotebookCreated(newNotebookId);
-    } catch (err) {
+    } catch (err: any) {
       console.error("Error al generar el plan:", err);
       setIsSynthesizingPlan(false);
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content:
-            "Hubo un problema al generar tu roadmap. Por favor, intenta de nuevo. Si el error persiste, verifica tu conexión o clave API en Ajustes.",
+          content: `Hubo un problema al generar tu roadmap. Error técnico: ${err.message || String(err)}. Por favor recarga la página completamente e intenta de nuevo.`,
         },
       ]);
     }
