@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useRouter } from "next/navigation";
 import Link from "next/link";
+import confetti from "canvas-confetti";
 import {
   ArrowLeft,
   BookOpen,
@@ -20,6 +21,7 @@ import {
 import MilestoneCard from "@/components/milestone/MilestoneCard";
 import TutorSidebar from "@/components/tutor/TutorSidebar";
 import NotebookNotes from "@/components/notebook/NotebookNotes";
+import NotebookSources from "@/components/notebook/NotebookSources";
 import MasteryCertificateModal from "@/components/milestone/MasteryCertificateModal";
 import type { Notebook, Milestone, ScaffoldingStep } from "@/types";
 
@@ -32,6 +34,7 @@ export default function NotebookDetailPage() {
   const [loading, setLoading] = useState(true);
   const [isTutorOpen, setIsTutorOpen] = useState(false);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
+  const [isSourcesOpen, setIsSourcesOpen] = useState(false);
   const [isMasteryModalOpen, setIsMasteryModalOpen] = useState(false);
 
   const loadNotebook = useCallback(async () => {
@@ -142,6 +145,14 @@ export default function NotebookDetailPage() {
         updatedAt: new Date().toISOString(),
       };
       await saveNotebookLocally(updatedNotebook);
+
+      const allDone = updatedNotebook.milestones.every(
+        (m) => m.status === "completed" || m.status === "mastered" || m.id === milestoneId
+      );
+      if (allDone) {
+        confetti({ particleCount: 200, spread: 90, origin: { y: 0.5 }, colors: ['#10b981', '#f59e0b', '#6366f1'] });
+        setTimeout(() => setIsMasteryModalOpen(true), 1500);
+      }
     } catch (err) {
       console.error("Error al completar el hito o actualizar stats:", err);
     }
@@ -187,8 +198,14 @@ export default function NotebookDetailPage() {
   ).length;
   const progressPercent = totalMilestones > 0 ? Math.round((completedMilestones / totalMilestones) * 100) : 0;
   const currentMilestoneIndex = notebook.milestones.findIndex((m) => m.status === "in_progress");
-  const activeMilestone =
-    currentMilestoneIndex !== -1 ? notebook.milestones[currentMilestoneIndex] : notebook.milestones[0];
+  const allCompleted = notebook.milestones.every(
+    (m) => m.status === "completed" || m.status === "mastered"
+  );
+  const activeMilestone = allCompleted
+    ? notebook.milestones[notebook.milestones.length - 1] // Show the last (capstone) milestone
+    : currentMilestoneIndex !== -1
+      ? notebook.milestones[currentMilestoneIndex]
+      : notebook.milestones[0];
 
   return (
     <main className="min-h-screen bg-background text-foreground flex flex-col">
@@ -232,6 +249,15 @@ export default function NotebookDetailPage() {
           )}
 
           <button
+            onClick={() => setIsSourcesOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-zinc-800 text-zinc-300 hover:text-emerald-400 hover:bg-zinc-800/80 transition text-sm"
+            title="Fuentes de referencia"
+          >
+            <BookOpen className="w-4 h-4" />
+            <span className="hidden sm:inline">Fuentes</span>
+          </button>
+
+          <button
             onClick={() => setIsNotesOpen(true)}
             className="px-3 py-1.5 rounded-xl bg-zinc-900 hover:bg-zinc-800 border border-zinc-800 text-zinc-300 hover:text-zinc-100 text-xs font-medium flex items-center gap-1.5 transition-colors"
           >
@@ -264,8 +290,14 @@ export default function NotebookDetailPage() {
             </div>
 
             <div className="flex items-center gap-1.5 text-xs text-amber-400 font-medium bg-amber-500/10 px-2.5 py-1 rounded-full border border-amber-500/20">
-              <Flame className="h-3.5 w-3.5 fill-amber-500/30" />
-              <span>Día actual: {activeMilestone?.order || 1}</span>
+              {allCompleted ? (
+                <span className="text-emerald-400">🎉 ¡Roadmap Completado!</span>
+              ) : (
+                <>
+                  <Flame className="h-3.5 w-3.5 fill-amber-500/30" />
+                  <span>Día actual: {activeMilestone?.order || 1}</span>
+                </>
+              )}
             </div>
           </div>
 
@@ -323,6 +355,7 @@ export default function NotebookDetailPage() {
                     milestone={m}
                     isCurrent={isCurrent}
                     isCapstone={isCapstone}
+                    notebookTopic={notebook.topic}
                     onToggleStep={handleToggleStep}
                     onCompleteMilestone={handleCompleteMilestone}
                     onInsertScaffolding={handleInsertScaffolding}
@@ -354,6 +387,14 @@ export default function NotebookDetailPage() {
       <NotebookNotes
         isOpen={isNotesOpen}
         onClose={() => setIsNotesOpen(false)}
+        notebook={notebook}
+        onNotebookUpdate={(updated) => setNotebook(updated)}
+      />
+
+      {/* Fuentes de Referencia */}
+      <NotebookSources
+        isOpen={isSourcesOpen}
+        onClose={() => setIsSourcesOpen(false)}
         notebook={notebook}
         onNotebookUpdate={(updated) => setNotebook(updated)}
       />

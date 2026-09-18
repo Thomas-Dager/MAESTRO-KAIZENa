@@ -25,6 +25,7 @@ export async function POST(req: NextRequest) {
       currentDifficulty: String(rawContext.currentDifficulty || "beginner").slice(0, 30),
     };
     const userNotes = String(body.userNotes || "").slice(0, 1000);
+    const userSources = String(body.userSources || "").slice(0, 2000);
 
     const createFallbackStream = () => {
       const lastUserMsg = [...messages].reverse().find((m) => m.role === "user")?.content || "mi duda";
@@ -68,7 +69,7 @@ CONTEXTO DEL CUADERNO:
 - Hito actual en curso: "${notebookContext.currentMilestone || "No especificado"}"
 - Nivel de dificultad actual: "${notebookContext.currentDifficulty || "beginner"}"
 - Notas personales del usuario: "${userNotes || "Sin notas registradas"}"
-
+${userSources ? `\nFUENTES DE REFERENCIA PROPORCIONADAS:\n${userSources}\n` : ""}
 ESTILO DE RESPUESTA SOCRÁTICA:
 1. Respuestas concisas, estimulantes y directas.
 2. No resuelvas todo pasivamente; haz preguntas reflexivas que guíen al aprendiz a descubrir la solución por sí mismo.

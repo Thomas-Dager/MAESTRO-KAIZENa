@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { getNotebooksLocally, deleteNotebookLocally } from "@/db/localDb";
 import { useSync } from "@/lib/useSync";
+import { useStreak } from "@/hooks/useStreak";
 import AssessmentModal from "@/components/assessment/AssessmentModal";
 import AuthModal from "@/components/auth/AuthModal";
 import ApiKeyModal from "@/components/settings/ApiKeyModal";
@@ -34,6 +35,8 @@ interface AuthUser {
 export default function HomePage() {
   const router = useRouter();
 
+  const { currentStreak, todayCompleted } = useStreak();
+
   const [notebooks, setNotebooks] = useState<Notebook[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -42,6 +45,8 @@ export default function HomePage() {
   const [isAuthOpen, setIsAuthOpen] = useState(false);
   const [isApiKeyOpen, setIsApiKeyOpen] = useState(false);
   const [user, setUser] = useState<AuthUser | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<string | null>(null);
+  const [deleteName, setDeleteName] = useState("");
 
   // Sync hook
   const { isSyncing, syncNow, lastSyncedAt } = useSync();
@@ -76,18 +81,11 @@ export default function HomePage() {
     loadNotebooks();
   }, [checkUser, loadNotebooks]);
 
-  const handleDeleteNotebook = async (e: React.MouseEvent, id: string) => {
+  const handleDeleteNotebook = (e: React.MouseEvent, id: string, title: string) => {
     e.stopPropagation();
     e.preventDefault();
-    if (confirm("¿Estás seguro de eliminar este cuaderno de tu dispositivo?")) {
-      try {
-        await deleteNotebookLocally(id);
-        await loadNotebooks();
-      } catch (err) {
-        console.error("Error al eliminar cuaderno:", err);
-        alert("Ocurrió un error al eliminar el cuaderno. Revisa la consola.");
-      }
-    }
+    setDeleteTarget(id);
+    setDeleteName(title);
   };
 
   const handleNotebookCreated = (newId: string) => {
@@ -133,9 +131,15 @@ export default function HomePage() {
         {/* Action Controls */}
         <div className="flex items-center gap-2.5 sm:gap-4">
           {/* Racha */}
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-medium">
-            <Flame className="h-3.5 w-3.5 fill-amber-500/30" />
-            <span>1 día</span>
+          <div className="relative flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-500/10 border border-amber-500/20 text-amber-400 text-xs font-medium">
+            <Flame className={`h-3.5 w-3.5 ${currentStreak > 0 ? 'fill-amber-500' : 'fill-amber-500/30'}`} />
+            <span>{currentStreak > 0 ? `${currentStreak} día${currentStreak !== 1 ? 's' : ''}` : '—'}</span>
+            {todayCompleted && (
+              <span className="absolute -top-1 -right-1 flex h-2.5 w-2.5">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+              </span>
+            )}
           </div>
 
           {/* Botón Sincronizar (si hay sesión) */}
@@ -258,8 +262,8 @@ export default function HomePage() {
                         {nb.topic}
                       </span>
                       <button
-                        onClick={(e) => handleDeleteNotebook(e, nb.id)}
-                        className="opacity-0 group-hover:opacity-100 p-1 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-zinc-800 transition-all"
+                        onClick={(e) => handleDeleteNotebook(e, nb.id, nb.title)}
+                        className="opacity-60 sm:opacity-0 sm:group-hover:opacity-100 p-1 rounded-lg text-zinc-500 hover:text-red-400 hover:bg-zinc-800 transition-all"
                         title="Eliminar cuaderno"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
@@ -327,6 +331,19 @@ export default function HomePage() {
       </div>
 
       {/* Modales Flotantes */}
+      {deleteTarget && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+          <div className="bg-zinc-900 border border-zinc-700 rounded-2xl p-6 max-w-sm w-full space-y-4">
+            <h3 className="text-lg font-bold text-white">¿Eliminar cuaderno?</h3>
+            <p className="text-zinc-400 text-sm">Se eliminará permanentemente <strong className="text-white">&ldquo;{deleteName}&rdquo;</strong> y todo su progreso. Esta acción no se puede deshacer.</p>
+            <div className="flex gap-3">
+              <button onClick={() => setDeleteTarget(null)} className="flex-1 px-4 py-2.5 rounded-xl bg-zinc-800 text-zinc-300 hover:bg-zinc-700 transition">Cancelar</button>
+              <button onClick={async () => { await deleteNotebookLocally(deleteTarget); setNotebooks(prev => prev.filter(n => n.id !== deleteTarget)); setDeleteTarget(null); }} className="flex-1 px-4 py-2.5 rounded-xl bg-red-600/80 text-white hover:bg-red-500 transition">Eliminar</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <AssessmentModal
         isOpen={isAssessmentOpen}
         onClose={() => setIsAssessmentOpen(false)}

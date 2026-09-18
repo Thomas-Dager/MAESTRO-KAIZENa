@@ -29,31 +29,21 @@ export default function MasteryCertificateModal({
 }: MasteryCertificateModalProps) {
   useEffect(() => {
     if (isOpen) {
-      // Disparo triunfal de confeti visual
-      const duration = 2.5 * 1000;
-      const animationEnd = Date.now() + duration;
-
-      const frame = () => {
+      // Celebration burst
+      confetti({
+        particleCount: 150,
+        spread: 80,
+        origin: { y: 0.6 },
+        colors: ['#10b981', '#f59e0b', '#6366f1', '#f43f5e'],
+      });
+      // Second burst after 300ms
+      setTimeout(() => {
         confetti({
-          particleCount: 4,
-          angle: 60,
-          spread: 55,
-          origin: { x: 0 },
-          colors: ["#10b981", "#f59e0b", "#34d399", "#fbbf24"],
+          particleCount: 100,
+          spread: 120,
+          origin: { y: 0.5 },
         });
-        confetti({
-          particleCount: 4,
-          angle: 120,
-          spread: 55,
-          origin: { x: 1 },
-          colors: ["#10b981", "#f59e0b", "#34d399", "#fbbf24"],
-        });
-
-        if (Date.now() < animationEnd) {
-          requestAnimationFrame(frame);
-        }
-      };
-      frame();
+      }, 300);
     }
   }, [isOpen]);
 
@@ -138,10 +128,42 @@ ${src.content}
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200">
-      <div className="relative w-full max-w-2xl bg-card border-2 border-amber-500/50 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
-        {/* Modal Top Header */}
-        <div className="px-6 py-4 border-b border-border bg-gradient-to-r from-amber-500/10 via-emerald-500/10 to-amber-500/10 flex items-center justify-between">
+    <>
+      <style>{`
+        @media print {
+          body * {
+            visibility: hidden;
+          }
+          #mastery-certificate-container, #mastery-certificate-container * {
+            visibility: visible;
+          }
+          #mastery-certificate-container {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            margin: 0;
+            padding: 0;
+            background-color: white !important;
+            border: none !important;
+            box-shadow: none !important;
+          }
+          #mastery-certificate-container * {
+            color: black !important;
+          }
+          .print-hide {
+            display: none !important;
+          }
+          * {
+            -webkit-print-color-adjust: exact !important;
+            print-color-adjust: exact !important;
+          }
+        }
+      `}</style>
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-in fade-in duration-200 print-hide-bg">
+        <div id="mastery-certificate-container" className="relative w-full max-w-2xl bg-card border-2 border-amber-500/50 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[92vh]">
+          {/* Modal Top Header */}
+          <div className="px-6 py-4 border-b border-border bg-gradient-to-r from-amber-500/10 via-emerald-500/10 to-amber-500/10 flex items-center justify-between">
           <div className="flex items-center gap-2.5">
             <div className="h-9 w-9 rounded-xl bg-amber-500/20 border border-amber-500/40 flex items-center justify-center text-amber-400">
               <Award className="h-5 w-5" />
@@ -159,7 +181,7 @@ ${src.content}
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors"
+            className="p-1.5 rounded-lg text-zinc-400 hover:text-zinc-100 hover:bg-zinc-800 transition-colors print-hide"
           >
             <X className="h-4 w-4" />
           </button>
@@ -257,7 +279,7 @@ ${src.content}
         </div>
 
         {/* Modal Bottom Actions */}
-        <div className="px-6 py-4 border-t border-border bg-zinc-950 flex flex-wrap items-center justify-between gap-3">
+        <div className="px-6 py-4 border-t border-border bg-zinc-950 flex flex-wrap items-center justify-between gap-3 print-hide">
           <span className="text-xs font-mono text-zinc-500">
             Completado el {new Date().toLocaleDateString()}
           </span>
@@ -281,6 +303,7 @@ ${src.content}
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </>
   );
 }

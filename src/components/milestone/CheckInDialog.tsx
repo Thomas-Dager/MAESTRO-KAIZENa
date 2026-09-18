@@ -22,17 +22,27 @@ interface CheckInDialogProps {
   milestone: Milestone;
   onCompleteMilestone: (milestoneId: string) => void;
   onInsertScaffolding: (milestoneId: string, step: ScaffoldingStep) => void;
+  initialDifficulty?: CheckInDifficulty;
+  notebookTopic?: string;
 }
 
-const COMMON_BLOCKERS = [
-  "Falta de flexibilidad / rango de movimiento",
-  "Falta de equilibrio o balance",
-  "Dolor o molestia en articulación",
-  "Falta de fuerza o resistencia",
-  "Sobrecarga de variables simultáneas",
-  "No entendí la geometría o instrucción",
-  "El papel se arruga o rompe",
-];
+const getBlockersForTopic = (topic?: string) => {
+  if (!topic) return ["No entendí la instrucción", "Me siento abrumado/a", "Falta de concentración", "El paso es demasiado grande"];
+  const t = topic.toLowerCase();
+  if (/(cocina|corte|culinari|chef|cuchillo)/.test(t)) {
+    return ["El cuchillo patina", "Cortes desiguales", "Inseguridad con la hoja"];
+  }
+  if (/(pistol|sentadilla|calistenia|fuerza|flexibilidad)/.test(t)) {
+    return ["Falta de equilibrio", "Dolor o molestia en articulación", "Falta de flexibilidad", "No llego al fondo"];
+  }
+  if (/(palacio|memoria|loci|mnemo)/.test(t)) {
+    return ["Las imágenes mentales se desvanecen", "Confundo el orden de los loci", "No logro asociaciones vívidas", "Olvido rápido tras la práctica"];
+  }
+  if (/(programar|código|software|web|app|python|javascript)/.test(t)) {
+    return ["Error de sintaxis que no entiendo", "Lógica del algoritmo confusa", "No sé cómo depurar", "Documentación abrumadora"];
+  }
+  return ["No entendí la instrucción", "Me siento abrumado/a", "Falta de concentración", "El paso es demasiado grande"];
+};
 
 export default function CheckInDialog({
   isOpen,
@@ -40,12 +50,26 @@ export default function CheckInDialog({
   milestone,
   onCompleteMilestone,
   onInsertScaffolding,
+  initialDifficulty,
+  notebookTopic,
 }: CheckInDialogProps) {
-  const [selectedDifficulty, setSelectedDifficulty] = useState<CheckInDifficulty>("adecuado");
+  const [selectedDifficulty, setSelectedDifficulty] = useState<CheckInDifficulty>(initialDifficulty || "adecuado");
   const [selectedBlockers, setSelectedBlockers] = useState<string[]>([]);
   const [userComment, setUserComment] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [analyzingStep, setAnalyzingStep] = useState<string | null>(null);
+  const [showRefuerzoPrompt, setShowRefuerzoPrompt] = useState(false);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setSelectedDifficulty(initialDifficulty || "adecuado");
+      setSelectedBlockers([]);
+      setUserComment("");
+      setIsSubmitting(false);
+      setAnalyzingStep(null);
+      setShowRefuerzoPrompt(false);
+    }
+  }, [isOpen, initialDifficulty]);
 
   if (!isOpen) return null;
 
@@ -53,6 +77,50 @@ export default function CheckInDialog({
     setSelectedBlockers((prev) =>
       prev.includes(blocker) ? prev.filter((b) => b !== blocker) : [...prev, blocker]
     );
+  };
+
+  const handleGenerateScaffolding = async () => {
+    setAnalyzingStep("Maestro Kaizen está analizando la causa raíz...");
+    setIsSubmitting(true);
+    try {
+      const customKey = typeof window !== "undefined"
+        ? localStorage.getItem("mk_gemini_api_key") || ""
+        : "";
+
+      const res = await fetch("/api/ai/scaffolding", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(customKey ? { "x-gemini-api-key": customKey } : {}),
+        },
+        body: JSON.stringify({
+          milestoneId: milestone.id,
+          milestoneTitle: milestone.title,
+          milestoneTheory: milestone.description,
+          difficulty: selectedDifficulty,
+          comments: userComment || "Dificultad reportada en el check-in diario",
+          blockers: selectedBlockers,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.scaffoldingStep) {
+        setAnalyzingStep("Insertando escalón previo de desbloqueo...");
+        setTimeout(() => {
+          onInsertScaffolding(milestone.id, data.scaffoldingStep);
+          setIsSubmitting(false);
+          setAnalyzingStep(null);
+          onClose();
+        }, 800);
+        return;
+      }
+    } catch (err) {
+      console.error("Error al generar scaffolding en check-in:", err);
+    } finally {
+      setIsSubmitting(false);
+      setAnalyzingStep(null);
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -77,49 +145,11 @@ export default function CheckInDialog({
       console.error("Error al guardar sesión de check-in:", err);
     }
 
-    if (selectedDifficulty === "bloqueado" || selectedDifficulty === "dificil") {
-      setAnalyzingStep("Maestro Kaizen está analizando la causa raíz...");
-
-      try {
-        const customKey = typeof window !== "undefined"
-          ? localStorage.getItem("mk_gemini_api_key") || ""
-          : "";
-
-        const res = await fetch("/api/ai/scaffolding", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(customKey ? { "x-gemini-api-key": customKey } : {}),
-          },
-          body: JSON.stringify({
-            milestoneId: milestone.id,
-            milestoneTitle: milestone.title,
-            milestoneTheory: milestone.description,
-            difficulty: selectedDifficulty,
-            comments: userComment || "Dificultad reportada en el check-in diario",
-            blockers: selectedBlockers,
-          }),
-        });
-
-        const data = await res.json();
-
-        if (data.scaffoldingStep) {
-          setAnalyzingStep("Insertando escalón previo de desbloqueo...");
-          setTimeout(() => {
-            onInsertScaffolding(milestone.id, data.scaffoldingStep);
-            setIsSubmitting(false);
-            setAnalyzingStep(null);
-            onClose();
-          }, 800);
-          return;
-        }
-      } catch (err) {
-        console.error("Error al generar scaffolding en check-in:", err);
-      } finally {
-        // Always clear submitting state if we didn't return early
-        setIsSubmitting(false);
-        setAnalyzingStep(null);
-      }
+    if (selectedDifficulty === "bloqueado") {
+      await handleGenerateScaffolding();
+    } else if (selectedDifficulty === "dificil") {
+      setShowRefuerzoPrompt(true);
+      setIsSubmitting(false);
     } else {
       // Muy fácil o Adecuado -> Completar hito
       onCompleteMilestone(milestone.id);
@@ -169,6 +199,40 @@ export default function CheckInDialog({
             <p className="text-[11px] text-zinc-500 max-w-xs">
               No posponemos tu meta: reducimos la fricción creando una micro-regresión para dominar la causa raíz.
             </p>
+          </div>
+        ) : showRefuerzoPrompt ? (
+          <div className="p-8 flex flex-col items-center justify-center text-center gap-5 animate-in fade-in">
+            <div className="h-14 w-14 rounded-2xl bg-emerald-500/10 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
+              <CheckCircle2 className="h-7 w-7" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-zinc-100">
+                Has completado el hito con esfuerzo
+              </h4>
+              <p className="text-xs text-zinc-400 mt-2 max-w-xs leading-relaxed">
+                ¿Deseas generar un escalón de refuerzo adicional para consolidar el aprendizaje, o prefieres continuar al siguiente hito?
+              </p>
+            </div>
+            <div className="flex flex-col w-full gap-2 mt-2">
+              <button
+                type="button"
+                onClick={() => handleGenerateScaffolding()}
+                className="w-full px-5 py-3 rounded-xl font-semibold text-xs flex items-center justify-center gap-2 transition-all bg-amber-500 hover:bg-amber-400 text-zinc-950 shadow-sm"
+              >
+                <LifeBuoy className="h-4 w-4" />
+                <span>Sí, generar refuerzo</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  onCompleteMilestone(milestone.id);
+                  onClose();
+                }}
+                className="w-full px-5 py-3 rounded-xl font-semibold text-xs flex items-center justify-center gap-2 transition-all bg-zinc-800 hover:bg-zinc-700 text-zinc-200"
+              >
+                <span>No, continuar al siguiente</span>
+              </button>
+            </div>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="p-5 sm:p-6 overflow-y-auto flex flex-col gap-5">
@@ -250,7 +314,7 @@ export default function CheckInDialog({
                 </span>
 
                 <div className="flex flex-wrap gap-1.5">
-                  {COMMON_BLOCKERS.map((blocker) => {
+                  {getBlockersForTopic(notebookTopic).map((blocker) => {
                     const active = selectedBlockers.includes(blocker);
                     return (
                       <button

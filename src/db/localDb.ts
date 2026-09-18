@@ -46,7 +46,7 @@ export class MaestroKaizenDB extends Dexie {
       notebooks: "id, userId, title, topic, currentLevel, updatedAt, isArchived",
       milestones: "id, notebookId, order, status, targetDifficulty",
       tutorMessages: "id, notebookId, role, timestamp",
-      userSettings: "&key, updatedAt",
+      userSettings: "++id, key, updatedAt",
       sessions: "id, notebookId, milestoneId, difficulty, completedAt",
     });
   }

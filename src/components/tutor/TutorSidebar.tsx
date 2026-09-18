@@ -22,6 +22,16 @@ interface TutorSidebarProps {
   activeMilestone?: Milestone;
 }
 
+import ReactMarkdown from "react-markdown";
+
+function renderMarkdownContent(text: string): React.ReactNode {
+  return (
+    <div className="prose prose-invert prose-xs max-w-none text-zinc-200 leading-relaxed space-y-1.5 [&_ul]:list-disc [&_ul]:pl-4 [&_ol]:list-decimal [&_ol]:pl-4 [&_code]:bg-zinc-800 [&_code]:px-1.5 [&_code]:py-0.5 [&_code]:rounded [&_code]:text-emerald-300 [&_code]:font-mono [&_pre]:bg-zinc-950 [&_pre]:p-2.5 [&_pre]:rounded-xl [&_pre]:border [&_pre]:border-zinc-800 [&_strong]:text-zinc-100 [&_strong]:font-semibold">
+      <ReactMarkdown>{text}</ReactMarkdown>
+    </div>
+  );
+}
+
 export default function TutorSidebar({
   isOpen,
   onClose,
@@ -105,6 +115,11 @@ Estoy aquí para acompañarte paso a paso. Puedes preguntarme sobre técnicas bi
         ? localStorage.getItem("mk_gemini_api_key") || ""
         : "";
 
+      const sourcesSummary = notebook.sources
+        ?.filter(s => s.type !== 'manual_note' && (s.url || s.content))
+        .map(s => `[${s.type.toUpperCase()}] ${s.title}: ${s.url || s.content?.slice(0, 200)}`)
+        .join('\n') || '';
+
       const res = await fetch("/api/ai/tutor", {
         method: "POST",
         headers: {
@@ -119,9 +134,27 @@ Estoy aquí para acompañarte paso a paso. Puedes preguntarme sobre técnicas bi
             currentMilestone: currentMilestone ? `Día ${currentMilestone.order}: ${currentMilestone.title}` : "General",
             currentDifficulty: notebook.currentLevel,
           },
-          userNotes: notebook.sources.map((s) => `${s.title}: ${s.content}`).join("\n\n"),
+          userNotes: notebook.sources?.filter(s => s.type === 'manual_note').map((s) => `${s.title}: ${s.content}`).join("\n\n") || "",
+          userSources: sourcesSummary,
         }),
       });
+
+      if (!res.ok) {
+        const errorText = await res.text();
+        console.error('Tutor API error:', res.status, errorText);
+        // Show a friendly error as assistant message instead of raw JSON
+        const errorMsg: ChatMessage = {
+          id: `msg-error-${Date.now()}`,
+          notebookId: notebook.id,
+          role: 'assistant',
+          content: '⚠️ Hubo un problema al conectar con el tutor. Por favor intenta de nuevo en unos segundos.',
+          timestamp: Date.now()
+        };
+        setMessages(prev => [...prev.slice(0, -1), errorMsg]); // Replace placeholder
+        await addTutorMessageLocally(errorMsg);
+        setIsStreaming(false);
+        return;
+      }
 
       if (!res.body) throw new Error("Sin cuerpo de respuesta");
 
@@ -158,6 +191,14 @@ Estoy aquí para acompañarte paso a paso. Puedes preguntarme sobre técnicas bi
       }
     } catch (err) {
       console.error("Error en TutorSidebar streaming:", err);
+      const errorMsg: ChatMessage = {
+        id: `msg-error-${Date.now()}`,
+        notebookId: notebook.id,
+        role: "assistant",
+        content: "⚠️ Ocurrió un error inesperado al conectar con el tutor.",
+        timestamp: Date.now(),
+      };
+      setMessages(prev => [...prev.slice(0, -1), errorMsg]);
     } finally {
       setIsStreaming(false);
     }
@@ -220,7 +261,7 @@ Estoy aquí para acompañarte paso a paso. Puedes preguntarme sobre técnicas bi
               <span className="text-[10px] font-mono text-zinc-500 uppercase">
                 {m.role === "user" ? "Tú" : "Maestro Kaizen"}
               </span>
-              <p className="whitespace-pre-line">{m.content || (isStreaming ? "..." : "")}</p>
+              {m.role === 'assistant' ? renderMarkdownContent(m.content || (isStreaming ? "..." : "")) : <p className="whitespace-pre-line">{m.content}</p>}
             </div>
           ))}
 

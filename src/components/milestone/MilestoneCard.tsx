@@ -18,6 +18,7 @@ import {
   Zap,
 } from "lucide-react";
 import CheckInDialog from "./CheckInDialog";
+import PracticeTimer from "./PracticeTimer";
 import type { Milestone, ScaffoldingStep } from "@/types";
 
 interface MilestoneCardProps {
@@ -28,6 +29,7 @@ interface MilestoneCardProps {
   onCompleteMilestone: (milestoneId: string) => void;
   onInsertScaffolding: (milestoneId: string, step: ScaffoldingStep) => void;
   onTriggerMastery?: () => void;
+  notebookTopic?: string;
 }
 
 export default function MilestoneCard({
@@ -38,9 +40,11 @@ export default function MilestoneCard({
   onCompleteMilestone,
   onInsertScaffolding,
   onTriggerMastery,
+  notebookTopic,
 }: MilestoneCardProps) {
   const [isExpanded, setIsExpanded] = useState(isCurrent);
   const [isCheckInOpen, setIsCheckInOpen] = useState(false);
+  const [checkInMode, setCheckInMode] = useState<"adecuado" | "bloqueado">("adecuado");
 
   const isCompleted = milestone.status === "completed" || milestone.status === "mastered";
 
@@ -54,9 +58,13 @@ export default function MilestoneCard({
 
   const isBlocked = scaffoldSteps.length > 0 && !isCompleted;
 
-  const sensoryFocus = milestone.steps[0]?.content.includes("Foco:")
-    ? milestone.steps[0].content.split("Foco:")[1] || milestone.steps[0].content
-    : "Precisión en los fundamentos y ausencia de tensión en hombros y manos.";
+  const sensoryFocusText = milestone.steps[0]?.content || "";
+  let sensoryFocus = "Atención plena en cada detalle del proceso.";
+  if (sensoryFocusText.includes("Foco sensorial:")) {
+    sensoryFocus = sensoryFocusText.split("Foco sensorial:")[1]?.trim() || sensoryFocus;
+  } else if (sensoryFocusText.includes("Foco:")) {
+    sensoryFocus = sensoryFocusText.split("Foco:")[1]?.trim() || sensoryFocus;
+  }
 
   return (
     <div
@@ -235,6 +243,15 @@ export default function MilestoneCard({
             </div>
           </div>
 
+          {/* Timer de Práctica */}
+          {isCurrent && milestone.status !== 'completed' && milestone.status !== 'mastered' && (
+            <PracticeTimer
+              milestoneId={milestone.id}
+              notebookId={milestone.notebookId}
+              estimatedMinutes={milestone.estimatedMinutes}
+            />
+          )}
+
           {/* Lista de Pasos Principales de Andamiaje */}
           <div className="flex flex-col gap-2">
             <span className="text-[11px] font-mono uppercase text-zinc-400 font-medium">
@@ -300,7 +317,10 @@ export default function MilestoneCard({
               {/* Botón "¿Bloqueado? Pedir Escalón" */}
               {!isCompleted && (
                 <button
-                  onClick={() => setIsCheckInOpen(true)}
+                  onClick={() => {
+                    setCheckInMode("bloqueado");
+                    setIsCheckInOpen(true);
+                  }}
                   className="px-3 py-2 rounded-xl bg-amber-500/10 hover:bg-amber-500/20 border border-amber-500/30 text-amber-400 text-xs font-medium flex items-center gap-1.5 transition-colors"
                 >
                   <LifeBuoy className="h-3.5 w-3.5" />
@@ -311,7 +331,10 @@ export default function MilestoneCard({
               {/* Botón Completar Hito / Check-in del Día */}
               {!isCompleted ? (
                 <button
-                  onClick={() => setIsCheckInOpen(true)}
+                  onClick={() => {
+                    setCheckInMode("adecuado");
+                    setIsCheckInOpen(true);
+                  }}
                   className="px-4 py-2 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-semibold text-xs flex items-center gap-1.5 transition-colors shadow-sm"
                 >
                   <CheckCircle2 className="h-3.5 w-3.5" />
@@ -333,6 +356,8 @@ export default function MilestoneCard({
         isOpen={isCheckInOpen}
         onClose={() => setIsCheckInOpen(false)}
         milestone={milestone}
+        initialDifficulty={checkInMode}
+        notebookTopic={notebookTopic}
         onCompleteMilestone={(id) => {
           onCompleteMilestone(id);
           if (isCapstone) {

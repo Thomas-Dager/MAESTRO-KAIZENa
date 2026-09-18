@@ -35,6 +35,8 @@ export default function AssessmentModal({
   const [isLoading, setIsLoading] = useState(false);
   const [isSynthesizingPlan, setIsSynthesizingPlan] = useState(false);
   const [synthesisStep, setSynthesisStep] = useState("Analizando brecha diagnóstica...");
+  const [canRetry, setCanRetry] = useState(false);
+  const [lastPlanArgs, setLastPlanArgs] = useState<{level?: DifficultyLevel, gap?: string}>({});
 
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -125,6 +127,13 @@ export default function AssessmentModal({
       }
     } catch (err) {
       console.error("Error en respuesta de diagnóstico:", err);
+      setMessages((prev) => [
+        ...prev,
+        {
+          role: "assistant",
+          content: "Lo siento, no pude procesar tu respuesta. Por favor intenta enviarla de nuevo.",
+        },
+      ]);
     } finally {
       setIsLoading(false);
     }
@@ -134,6 +143,8 @@ export default function AssessmentModal({
     assessedLevel: DifficultyLevel = "beginner",
     gapAnalysis = "Práctica deliberada con andamiaje progresivo"
   ) => {
+    setCanRetry(false);
+    setLastPlanArgs({ level: assessedLevel, gap: gapAnalysis });
     setIsSynthesizingPlan(true);
     setSynthesisStep("Kaizen está sintetizando tus puntos de fricción...");
 
@@ -229,11 +240,12 @@ export default function AssessmentModal({
     } catch (err: any) {
       console.error("Error al generar el plan:", err);
       setIsSynthesizingPlan(false);
+      setCanRetry(true);
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: `Hubo un problema al generar tu roadmap. Error técnico: ${err.message || String(err)}. Por favor recarga la página completamente e intenta de nuevo.`,
+          content: "Hubo un problema al generar tu roadmap. Puedes intentarlo de nuevo.",
         },
       ]);
     }
@@ -365,6 +377,17 @@ export default function AssessmentModal({
                 <div className="mr-auto p-3 rounded-2xl bg-zinc-900 border border-zinc-800 text-xs text-zinc-400 flex items-center gap-2">
                   <Loader2 className="h-3.5 w-3.5 animate-spin text-emerald-400" />
                   <span>Maestro Kaizen está analizando tu respuesta...</span>
+                </div>
+              )}
+
+              {canRetry && (
+                <div className="flex justify-center mt-2 mb-2">
+                  <button
+                    onClick={() => triggerPlanGeneration(lastPlanArgs.level, lastPlanArgs.gap)}
+                    className="py-2.5 px-5 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-zinc-950 font-bold text-xs flex items-center justify-center gap-2 transition-colors shadow-sm"
+                  >
+                    <span>🔄 Reintentar generación</span>
+                  </button>
                 </div>
               )}
 
