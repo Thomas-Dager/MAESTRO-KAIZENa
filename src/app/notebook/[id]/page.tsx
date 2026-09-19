@@ -10,7 +10,7 @@ import {
   Brain,
   Sparkles,
   Flame,
-  CheckCircle2,
+  LayoutGrid,
 } from "lucide-react";
 import {
   getNotebookByIdLocally,
@@ -19,6 +19,7 @@ import {
   insertScaffoldingLocally,
 } from "@/db/localDb";
 import MilestoneCard from "@/components/milestone/MilestoneCard";
+import MilestoneDetailDrawer from "@/components/milestone/MilestoneDetailDrawer";
 import TutorSidebar from "@/components/tutor/TutorSidebar";
 import NotebookNotes from "@/components/notebook/NotebookNotes";
 import NotebookSources from "@/components/notebook/NotebookSources";
@@ -33,9 +34,14 @@ export default function NotebookDetailPage() {
   const [notebook, setNotebook] = useState<Notebook | null>(null);
   const [loading, setLoading] = useState(true);
   const [isTutorOpen, setIsTutorOpen] = useState(false);
+  const [tutorInitialMessage, setTutorInitialMessage] = useState<string | undefined>(undefined);
   const [isNotesOpen, setIsNotesOpen] = useState(false);
   const [isSourcesOpen, setIsSourcesOpen] = useState(false);
   const [isMasteryModalOpen, setIsMasteryModalOpen] = useState(false);
+  // Drawer state
+  const [drawerMilestone, setDrawerMilestone] = useState<Milestone | null>(null);
+  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
+
 
   const loadNotebook = useCallback(async () => {
     if (!notebookId) return;
@@ -207,6 +213,21 @@ export default function NotebookDetailPage() {
       ? notebook.milestones[currentMilestoneIndex]
       : notebook.milestones[0];
 
+  // Open drawer for a milestone tile click, and auto-trigger tutor for active milestones
+  const openMilestoneDrawer = (m: Milestone) => {
+    setDrawerMilestone(m);
+    setIsDrawerOpen(true);
+    // Auto-open tutor only for the current active milestone
+    if (m.status === "in_progress") {
+      const dayNum = m.order;
+      const msg = `¡Empecemos el Día ${dayNum}! Hoy trabajarás en: **${m.title}**. Antes de comenzar, ¿tienes alguna duda sobre la técnica o quieres que te explique el porqué de este ejercicio?`;
+      setTutorInitialMessage(msg);
+      // Small delay so drawer animation plays first
+      setTimeout(() => setIsTutorOpen(true), 400);
+    }
+  };
+
+
   return (
     <main className="min-h-screen bg-background text-foreground flex flex-col">
       {/* Top Header */}
@@ -320,53 +341,60 @@ export default function NotebookDetailPage() {
           </div>
         </div>
 
-        {/* Timeline Vertical de Hitos */}
+
+        {/* Grid de Hitos */}
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <h2 className="text-base sm:text-lg font-bold text-zinc-100 flex items-center gap-2">
-              <span>Hoja de Ruta Progresiva</span>
+              <LayoutGrid className="h-5 w-5 text-emerald-400" />
+              <span>Hoja de Ruta</span>
               <span className="text-xs font-mono text-zinc-500 font-normal">
-                (Andamiaje Diario)
+                — {notebook.milestones.length} días
               </span>
             </h2>
+            <span className="text-xs text-zinc-500 font-mono">
+              Toca un día para verlo en detalle
+            </span>
           </div>
 
-          <div className="relative flex flex-col gap-6 pl-4 sm:pl-6 border-l-2 border-zinc-800/80 my-2">
+          {/* Responsive grid: 2 cols on mobile, 3 on sm, 4 on lg */}
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
             {notebook.milestones.map((m, index) => {
               const isCurrent = activeMilestone?.id === m.id;
-              const isCompleted = m.status === "completed" || m.status === "mastered";
               const isCapstone = index === notebook.milestones.length - 1;
 
               return (
-                <div key={m.id} className="relative">
-                  {/* Nodo conector en la línea vertical */}
-                  <div
-                    className={`absolute -left-[23px] sm:-left-[31px] top-6 h-3.5 w-3.5 rounded-full border-2 transition-all ${
-                      isCompleted
-                        ? "bg-emerald-500 border-emerald-400 ring-4 ring-emerald-500/10"
-                        : isCurrent
-                        ? "bg-zinc-950 border-emerald-400 ring-4 ring-emerald-500/30 scale-125"
-                        : "bg-zinc-900 border-zinc-700"
-                    }`}
-                  />
-
-                  {/* Tarjeta del Hito */}
-                  <MilestoneCard
-                    milestone={m}
-                    isCurrent={isCurrent}
-                    isCapstone={isCapstone}
-                    notebookTopic={notebook.topic}
-                    onToggleStep={handleToggleStep}
-                    onCompleteMilestone={handleCompleteMilestone}
-                    onInsertScaffolding={handleInsertScaffolding}
-                    onTriggerMastery={() => setIsMasteryModalOpen(true)}
-                  />
-                </div>
+                <MilestoneCard
+                  key={m.id}
+                  milestone={m}
+                  isCurrent={isCurrent}
+                  isCapstone={isCapstone}
+                  onClick={() => openMilestoneDrawer(m)}
+                />
               );
             })}
           </div>
         </div>
       </div>
+
+      {/* Drawer de Detalle del Hito */}
+      <MilestoneDetailDrawer
+        milestone={drawerMilestone}
+        isOpen={isDrawerOpen}
+        onClose={() => setIsDrawerOpen(false)}
+        isCurrent={drawerMilestone?.id === activeMilestone?.id}
+        isCapstone={
+          drawerMilestone
+            ? notebook.milestones.indexOf(drawerMilestone) ===
+              notebook.milestones.length - 1
+            : false
+        }
+        notebookTopic={notebook.topic}
+        onToggleStep={handleToggleStep}
+        onCompleteMilestone={handleCompleteMilestone}
+        onInsertScaffolding={handleInsertScaffolding}
+        onTriggerMastery={() => setIsMasteryModalOpen(true)}
+      />
 
       {/* Modal de Certificado de Maestría Kaizen */}
       <MasteryCertificateModal
@@ -378,9 +406,13 @@ export default function NotebookDetailPage() {
       {/* Panel lateral deslizable del Tutor IA */}
       <TutorSidebar
         isOpen={isTutorOpen}
-        onClose={() => setIsTutorOpen(false)}
+        onClose={() => {
+          setIsTutorOpen(false);
+          setTutorInitialMessage(undefined);
+        }}
         notebook={notebook}
         activeMilestone={activeMilestone}
+        initialMessage={tutorInitialMessage}
       />
 
       {/* Libreta de Notas y Bitácora */}

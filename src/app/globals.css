@@ -18,8 +18,7 @@ html,
 body {
   background-color: #09090b;
   color: #f4f4f5;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen,
-    Ubuntu, Cantarell, "Fira Sans", "Droid Sans", "Helvetica Neue", sans-serif;
+  font-family: sans-serif; /* Inter applied via inter.className in layout.tsx */
   min-height: 100vh;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
@@ -84,4 +83,21 @@ button, a, [role="button"] {
 
 .animate-in.slide-in-from-right {
   animation: slideInRight 0.3s ease-out;
+}
+
+/* Base font size improvement - more readable */
+html {
+  font-size: 16px;
+}
+
+/* Better line height for readability */
+body {
+  line-height: 1.6;
+}
+
+/* Improve readability for content text */
+.prose-kaizen {
+  font-size: 0.9375rem; /* 15px */
+  line-height: 1.65;
+  letter-spacing: 0.01em;
 }

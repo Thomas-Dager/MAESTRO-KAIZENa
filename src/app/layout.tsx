@@ -1,6 +1,13 @@
 import type { Metadata, Viewport } from "next";
+import { Inter } from "next/font/google";
 import RegisterServiceWorker from "@/components/pwa/RegisterServiceWorker";
 import "./globals.css";
+
+const inter = Inter({
+  subsets: ["latin"],
+  display: "swap",
+  variable: "--font-inter",
+});
 
 export const metadata: Metadata = {
   title: "Maestro Kaizen - Aprendizaje Adaptativo",
@@ -32,13 +39,13 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="es" className="dark">
+    <html lang="es" className={`dark ${inter.variable}`}>
       <head>
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-touch-fullscreen" content="yes" />
         <meta name="application-name" content="Maestro Kaizen" />
       </head>
-      <body className="bg-background text-foreground min-h-screen antialiased selection:bg-emerald-500/20 selection:text-emerald-300">
+      <body className={`${inter.className} bg-background text-foreground min-h-screen antialiased selection:bg-emerald-500/20 selection:text-emerald-300`}>
         <RegisterServiceWorker />
         {children}
       </body>

@@ -20,6 +20,7 @@ interface TutorSidebarProps {
   onClose: () => void;
   notebook: Notebook;
   activeMilestone?: Milestone;
+  initialMessage?: string;
 }
 
 import ReactMarkdown from "react-markdown";
@@ -37,6 +38,7 @@ export default function TutorSidebar({
   onClose,
   notebook,
   activeMilestone,
+  initialMessage,
 }: TutorSidebarProps) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [input, setInput] = useState("");
@@ -72,6 +74,17 @@ Estoy aquí para acompañarte paso a paso. Puedes preguntarme sobre técnicas bi
   useEffect(() => {
     scrollRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages, isStreaming]);
+
+  useEffect(() => {
+    // We check if messages length is <= 1 because there is always an initial welcome message
+    if (isOpen && initialMessage && messages.length <= 1) {
+      const timer = setTimeout(() => {
+        handleSend(initialMessage);
+      }, 600);
+      return () => clearTimeout(timer);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOpen, initialMessage]);
 
   if (!isOpen) return null;
 
@@ -216,11 +229,11 @@ Estoy aquí para acompañarte paso a paso. Puedes preguntarme sobre técnicas bi
             <div>
               <h3 className="text-sm font-bold text-zinc-100 flex items-center gap-1.5">
                 Tutor Socrático Kaizen
-                <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                <span className="text-xs font-mono px-1.5 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
                   24/7
                 </span>
               </h3>
-              <p className="text-[11px] text-zinc-400 truncate max-w-[210px]">
+              <p className="text-xs text-zinc-400 truncate max-w-[210px]">
                 {currentMilestone ? `Contexto: Día ${currentMilestone.order}` : notebook.title}
               </p>
             </div>
@@ -241,7 +254,7 @@ Estoy aquí para acompañarte paso a paso. Puedes preguntarme sobre técnicas bi
               <Lightbulb className="h-3.5 w-3.5 text-amber-400 shrink-0" />
               <strong className="text-zinc-200 truncate">{currentMilestone.title}</strong>
             </span>
-            <span className="text-[10px] font-mono text-zinc-500 uppercase shrink-0">
+            <span className="text-xs font-mono text-zinc-500 uppercase shrink-0">
               {currentMilestone.status}
             </span>
           </div>
@@ -258,7 +271,7 @@ Estoy aquí para acompañarte paso a paso. Puedes preguntarme sobre técnicas bi
                   : "mr-auto bg-zinc-900 border border-zinc-800 text-zinc-200 rounded-bl-none shadow-sm"
               }`}
             >
-              <span className="text-[10px] font-mono text-zinc-500 uppercase">
+              <span className="text-xs font-mono text-zinc-500 uppercase">
                 {m.role === "user" ? "Tú" : "Maestro Kaizen"}
               </span>
               {m.role === 'assistant' ? renderMarkdownContent(m.content || (isStreaming ? "..." : "")) : <p className="whitespace-pre-line">{m.content}</p>}
@@ -269,7 +282,7 @@ Estoy aquí para acompañarte paso a paso. Puedes preguntarme sobre técnicas bi
         </div>
 
         {/* Tips / Sugerencias de Pregunta Rápida */}
-        <div className="px-4 py-2 border-t border-border/50 bg-zinc-950/40 flex items-center gap-1.5 overflow-x-auto text-[11px] text-zinc-400">
+        <div className="px-4 py-2 border-t border-border/50 bg-zinc-950/40 flex items-center gap-1.5 overflow-x-auto text-xs text-zinc-400">
           <button
             onClick={() => handleSend("¿Cuál es la clave técnica principal de hoy?")}
             disabled={isStreaming}
