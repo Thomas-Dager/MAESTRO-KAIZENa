@@ -19,7 +19,7 @@ import {
   insertScaffoldingLocally,
 } from "@/db/localDb";
 import MilestoneCard from "@/components/milestone/MilestoneCard";
-import MilestoneDetailDrawer from "@/components/milestone/MilestoneDetailDrawer";
+import MilestoneDayView from "@/components/milestone/MilestoneDayView";
 import TutorSidebar from "@/components/tutor/TutorSidebar";
 import NotebookNotes from "@/components/notebook/NotebookNotes";
 import NotebookSources from "@/components/notebook/NotebookSources";
@@ -213,18 +213,10 @@ export default function NotebookDetailPage() {
       ? notebook.milestones[currentMilestoneIndex]
       : notebook.milestones[0];
 
-  // Open drawer for a milestone tile click, and auto-trigger tutor for active milestones
+  // Open drawer for a milestone tile click
   const openMilestoneDrawer = (m: Milestone) => {
     setDrawerMilestone(m);
     setIsDrawerOpen(true);
-    // Auto-open tutor only for the current active milestone
-    if (m.status === "in_progress") {
-      const dayNum = m.order;
-      const msg = `¡Empecemos el Día ${dayNum}! Hoy trabajarás en: **${m.title}**. Antes de comenzar, ¿tienes alguna duda sobre la técnica o quieres que te explique el porqué de este ejercicio?`;
-      setTutorInitialMessage(msg);
-      // Small delay so drawer animation plays first
-      setTimeout(() => setIsTutorOpen(true), 400);
-    }
   };
 
 
@@ -377,9 +369,9 @@ export default function NotebookDetailPage() {
         </div>
       </div>
 
-      {/* Drawer de Detalle del Hito */}
-      <MilestoneDetailDrawer
+      <MilestoneDayView
         milestone={drawerMilestone}
+        notebook={notebook}
         isOpen={isDrawerOpen}
         onClose={() => setIsDrawerOpen(false)}
         isCurrent={drawerMilestone?.id === activeMilestone?.id}
